@@ -1,0 +1,5 @@
+body,html{margin:0;padding:0;height:100%;font-family:Arial;background:#0b0f1a;color:#fff}
+header{display:flex;justify-content:space-between;align-items:center;padding:10px 20px;background:#111}
+#globe{position:absolute;top:60px;bottom:0;width:100%}
+.controls input{padding:6px}
+.controls button{padding:6px 10px}
