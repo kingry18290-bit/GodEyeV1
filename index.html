@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>World Monitor</title>
+  <title>GodEye V1 / World Monitor</title>
 
   <link
     href="https://cdn.jsdelivr.net/npm/cesium@1.115/Build/Cesium/Widgets/widgets.css"
@@ -12,247 +12,685 @@
   <script src="https://cdn.jsdelivr.net/npm/cesium@1.115/Build/Cesium/Cesium.js"></script>
 
   <style>
+    :root {
+      --bg: #03070d;
+      --panel: rgba(6, 12, 22, 0.86);
+      --panel-2: rgba(11, 20, 35, 0.78);
+      --line: rgba(120, 180, 255, 0.18);
+      --line-2: rgba(255, 255, 255, 0.08);
+      --text: #e9f2ff;
+      --muted: #8ca3bf;
+      --accent: #62c2ff;
+      --accent-2: #00ffc6;
+      --warn: #ffb454;
+      --danger: #ff5e7a;
+      --ok: #7dff9b;
+      --shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    * { box-sizing: border-box; }
+
     html, body, #cesiumContainer {
       width: 100%;
       height: 100%;
       margin: 0;
       padding: 0;
       overflow: hidden;
-      font-family: Arial, sans-serif;
-      background: #020814;
-      color: #fff;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, Segoe UI, Arial, sans-serif;
     }
 
-    #appHeader {
+    body {
+      letter-spacing: 0.1px;
+    }
+
+    #cesiumContainer {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    /* Visual modes */
+    body.mode-crt #cesiumContainer {
+      filter: contrast(1.08) saturate(0.95) brightness(0.95);
+    }
+
+    body.mode-nvg #cesiumContainer {
+      filter: hue-rotate(60deg) saturate(1.4) brightness(0.8) contrast(1.1);
+    }
+
+    body.mode-thermal #cesiumContainer {
+      filter: hue-rotate(-110deg) saturate(2.1) contrast(1.15) brightness(0.95);
+    }
+
+    body.mode-anime #cesiumContainer {
+      filter: saturate(1.6) contrast(1.08) brightness(1.02);
+    }
+
+    body.mode-crt::after,
+    body.mode-nvg::after,
+    body.mode-thermal::after,
+    body.mode-anime::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 40;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          rgba(255,255,255,0.04) 0px,
+          rgba(255,255,255,0.04) 1px,
+          rgba(0,0,0,0.00) 2px,
+          rgba(0,0,0,0.00) 4px
+        );
+      opacity: 0.18;
+      mix-blend-mode: screen;
+    }
+
+    /* Top bar */
+    .topbar {
       position: absolute;
       top: 0;
       left: 0;
       right: 0;
-      z-index: 10;
-      display: flex;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
       align-items: center;
-      justify-content: space-between;
       padding: 14px 18px;
-      background: rgba(0, 0, 0, 0.75);
-      border-bottom: 1px solid rgba(255,255,255,0.12);
-      backdrop-filter: blur(8px);
+      background: linear-gradient(to bottom, rgba(0,0,0,0.72), rgba(0,0,0,0.55));
+      border-bottom: 1px solid var(--line-2);
+      backdrop-filter: blur(10px);
     }
 
-    #titleWrap {
+    .brand {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
     }
 
-    #titleWrap h1 {
+    .brand .eyebrow {
+      font-size: 11px;
+      color: var(--warn);
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      opacity: 0.95;
+    }
+
+    .brand h1 {
       margin: 0;
-      font-size: 22px;
-      font-weight: 700;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
     }
 
-    #titleWrap p {
+    .brand p {
       margin: 0;
       font-size: 12px;
-      opacity: 0.8;
+      color: var(--muted);
     }
 
-    #controls {
+    .top-actions {
       display: flex;
-      gap: 8px;
       align-items: center;
+      gap: 8px;
       flex-wrap: wrap;
       justify-content: flex-end;
     }
 
-    #searchInput, button, select {
-      border: 1px solid rgba(255,255,255,0.16);
-      background: rgba(255,255,255,0.08);
-      color: #fff;
-      border-radius: 8px;
+    .input, .btn, .select {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border-radius: 10px;
       padding: 10px 12px;
-      font-size: 14px;
+      font-size: 13px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
     }
 
-    #searchInput {
-      width: 240px;
+    .input {
+      min-width: 220px;
       outline: none;
     }
 
-    button {
+    .btn {
       cursor: pointer;
       transition: 0.15s ease;
+      user-select: none;
     }
 
-    button:hover {
-      background: rgba(255,255,255,0.16);
+    .btn:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(120,180,255,0.28);
     }
 
-    #rightPanel {
+    .btn.active {
+      border-color: rgba(98,194,255,0.46);
+      background: rgba(98,194,255,0.14);
+      color: #dff4ff;
+    }
+
+    /* Left rail */
+    .left-rail {
       position: absolute;
-      top: 78px;
+      top: 96px;
+      left: 16px;
+      z-index: 20;
+      width: 290px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Right rail */
+    .right-rail {
+      position: absolute;
+      top: 96px;
       right: 16px;
+      z-index: 20;
       width: 340px;
-      max-height: calc(100vh - 96px);
+      max-height: calc(100vh - 170px);
       overflow: auto;
-      z-index: 11;
-      background: rgba(5, 10, 20, 0.86);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-right: 2px;
+    }
+
+    /* Bottom rail */
+    .bottom-rail {
+      position: absolute;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      z-index: 20;
+      width: min(1120px, calc(100vw - 32px));
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
       padding: 14px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      box-shadow: var(--shadow);
       backdrop-filter: blur(12px);
+      position: relative;
+      overflow: hidden;
     }
 
-    #rightPanel h2 {
-      margin: 0 0 10px 0;
-      font-size: 18px;
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: inherit;
+      background:
+        linear-gradient(to bottom right, rgba(98,194,255,0.04), transparent 35%);
     }
 
-    .section {
-      margin-top: 14px;
-      padding-top: 12px;
-      border-top: 1px solid rgba(255,255,255,0.1);
+    .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
     }
 
-    .section h3 {
-      margin: 0 0 8px 0;
-      font-size: 15px;
-      color: #7cc7ff;
+    .panel-title h2,
+    .panel-title h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
     }
 
-    .feedItem {
+    .subtle {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .stat {
       padding: 10px;
-      margin-bottom: 8px;
-      border-radius: 10px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--line-2);
+    }
+
+    .stat .k {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat .v {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .layers {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--line-2);
       font-size: 13px;
+    }
+
+    .toggle input {
+      accent-color: var(--accent);
+    }
+
+    .feed {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .card {
+      background: var(--panel-2);
+      border: 1px solid var(--line-2);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+
+    .card strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 12px;
       line-height: 1.4;
     }
 
-    .feedItem strong {
-      display: block;
-      margin-bottom: 4px;
-      color: #fff;
-    }
-
-    .small {
-      opacity: 0.75;
-      font-size: 12px;
-    }
-
-    .badgeRow {
+    .badge-row {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       flex-wrap: wrap;
       margin-top: 8px;
     }
 
     .badge {
-      font-size: 12px;
-      padding: 6px 8px;
       border-radius: 999px;
-      background: rgba(124, 199, 255, 0.12);
-      border: 1px solid rgba(124, 199, 255, 0.24);
-      color: #b7e4ff;
+      padding: 5px 8px;
+      font-size: 11px;
+      border: 1px solid var(--line);
+      background: rgba(98,194,255,0.08);
+      color: #d7efff;
     }
 
-    #statusBar {
+    .badge.warn {
+      color: #ffe1bd;
+      background: rgba(255,180,84,0.12);
+      border-color: rgba(255,180,84,0.2);
+    }
+
+    .badge.danger {
+      color: #ffd6df;
+      background: rgba(255,94,122,0.12);
+      border-color: rgba(255,94,122,0.2);
+    }
+
+    .badge.ok {
+      color: #d8ffe2;
+      background: rgba(125,255,155,0.12);
+      border-color: rgba(125,255,155,0.2);
+    }
+
+    .timeline-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .mode-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .status-pill {
       position: absolute;
       left: 16px;
       bottom: 16px;
-      z-index: 11;
-      background: rgba(0,0,0,0.7);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 13px;
+      z-index: 21;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      background: rgba(0,0,0,0.68);
+      border: 1px solid var(--line);
       backdrop-filter: blur(8px);
+      box-shadow: var(--shadow);
     }
 
-    a {
-      color: #8fd1ff;
-      text-decoration: none;
+    .legend-dot {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
     }
 
-    a:hover {
-      text-decoration: underline;
+    .small {
+      font-size: 12px;
+      color: var(--muted);
     }
 
+    .mono {
+      font-family: Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .scroll {
+      max-height: 280px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .right-rail::-webkit-scrollbar,
+    .scroll::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    .right-rail::-webkit-scrollbar-thumb,
+    .scroll::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.08);
+      border-radius: 10px;
+    }
+
+    .cesium-viewer-bottom,
     .cesium-widget-credits {
       display: none !important;
     }
 
-    @media (max-width: 900px) {
-      #appHeader {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-      }
+    @media (max-width: 1200px) {
+      .left-rail { width: 250px; }
+      .right-rail { width: 300px; }
+    }
 
-      #controls {
-        justify-content: stretch;
-      }
-
-      #searchInput {
-        width: 100%;
-      }
-
-      #rightPanel {
-        left: 16px;
-        right: 16px;
+    @media (max-width: 980px) {
+      .left-rail, .right-rail {
+        position: static;
         width: auto;
-        top: 130px;
-        max-height: 42vh;
+        max-height: none;
+      }
+
+      .topbar,
+      .bottom-rail {
+        position: static;
+        transform: none;
+        width: auto;
+      }
+
+      .topbar {
+        grid-template-columns: 1fr;
+      }
+
+      .bottom-rail {
+        grid-template-columns: 1fr;
+        padding: 0 16px 16px;
+      }
+
+      body {
+        overflow: auto;
+        background: var(--bg);
+      }
+
+      #cesiumContainer {
+        position: relative;
+        height: 62vh;
+      }
+
+      .mobile-stack {
+        position: relative;
+        z-index: 20;
+        display: grid;
+        gap: 12px;
+        padding: 12px 16px 18px;
+      }
+
+      .status-pill {
+        position: static;
+        margin: 0 16px 16px;
       }
     }
   </style>
 </head>
-<body>
+<body class="mode-normal">
   <div id="cesiumContainer"></div>
 
-  <div id="appHeader">
-    <div id="titleWrap">
-      <h1>World Monitor</h1>
-      <p>3D globe • search • earthquakes • weather • public conflict summaries</p>
+  <header class="topbar">
+    <div class="brand">
+      <div class="eyebrow">public geospatial awareness system</div>
+      <h1>WORLDVIEW / GODEYE V1</h1>
+      <p>3D globe • public events • weather • seismic activity • conflict summaries</p>
     </div>
 
-    <div id="controls">
-      <input id="searchInput" type="text" placeholder="Search location" />
-      <button id="searchBtn">Go</button>
-      <button id="resetBtn">Reset View</button>
-      <button id="quakesBtn">Reload Quakes</button>
+    <div class="top-actions">
+      <input id="searchInput" class="input" type="text" placeholder="Search city, country, region" />
+      <button id="searchBtn" class="btn">GO</button>
+      <button id="resetBtn" class="btn">HOME</button>
+      <button id="reloadBtn" class="btn">REFRESH</button>
     </div>
+  </header>
+
+  <div class="mobile-stack">
+    <aside class="left-rail">
+      <section class="panel">
+        <div class="panel-title">
+          <h2>Command Panel</h2>
+          <span class="subtle">Global View</span>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat">
+            <div class="k">Mode</div>
+            <div class="v" id="activeModeLabel">NORMAL</div>
+          </div>
+          <div class="stat">
+            <div class="k">Feed Status</div>
+            <div class="v">LIVE</div>
+          </div>
+          <div class="stat">
+            <div class="k">Tracked Quakes</div>
+            <div class="v" id="quakeCount">--</div>
+          </div>
+          <div class="stat">
+            <div class="k">Conflict Regions</div>
+            <div class="v" id="conflictCount">--</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <h3>Layer Stack</h3>
+          <span class="subtle">Safe Public Layers</span>
+        </div>
+
+        <div class="layers">
+          <label class="toggle">
+            <span>Earthquakes</span>
+            <input id="toggleQuakes" type="checkbox" checked />
+          </label>
+          <label class="toggle">
+            <span>Conflict Regions</span>
+            <input id="toggleConflicts" type="checkbox" checked />
+          </label>
+          <label class="toggle">
+            <span>Grid Overlay</span>
+            <input id="toggleGrid" type="checkbox" checked />
+          </label>
+          <label class="toggle">
+            <span>Stars</span>
+            <input id="toggleStars" type="checkbox" checked />
+          </label>
+        </div>
+
+        <div class="badge-row">
+          <span class="badge"><span class="legend-dot" style="background:#ff5e7a"></span>Conflict</span>
+          <span class="badge warn"><span class="legend-dot" style="background:#ffb454"></span>M3+</span>
+          <span class="badge danger"><span class="legend-dot" style="background:#ff5e7a"></span>M5+</span>
+          <span class="badge ok"><span class="legend-dot" style="background:#7dff9b"></span>Weather</span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <h3>Region Intel</h3>
+          <span class="subtle">Selection</span>
+        </div>
+        <div id="selectionCard" class="card">
+          <strong>Awaiting selection</strong>
+          <div class="meta">Click the globe, a marker, or search a location.</div>
+        </div>
+      </section>
+    </aside>
+
+    <aside class="right-rail">
+      <section class="panel">
+        <div class="panel-title">
+          <h3>Event / Region Feed</h3>
+          <span class="subtle">Public Context</span>
+        </div>
+        <div id="regionFeed" class="feed"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <h3>Recent Earthquakes</h3>
+          <span class="subtle">USGS</span>
+        </div>
+        <div id="quakeFeed" class="feed scroll"></div>
+      </section>
+    </aside>
   </div>
 
-  <aside id="rightPanel">
-    <h2>Region / Event Details</h2>
-    <div id="details">
-      <div class="feedItem">
-        <strong>Welcome</strong>
-        Click anywhere on the globe to get coordinates and weather. Use the search box to fly to a city or country.
+  <div class="bottom-rail">
+    <section class="panel timeline-wrap">
+      <div class="timeline-header">
+        <span>Timeline Filter</span>
+        <span id="timelineLabel">Last 24 hours</span>
       </div>
-    </div>
+      <input id="timelineSlider" type="range" min="1" max="4" step="1" value="1" />
+      <div class="small mono">1: 24h &nbsp; 2: 7d &nbsp; 3: 30d &nbsp; 4: 90d</div>
+    </section>
 
-    <div class="section">
-      <h3>Demo Conflict Regions</h3>
-      <div id="conflictFeed"></div>
-    </div>
+    <section class="panel">
+      <div class="panel-title">
+        <h3>Visual Modes</h3>
+        <span class="subtle">Aesthetic Only</span>
+      </div>
+      <div class="mode-bar">
+        <button class="btn mode-btn active" data-mode="normal">NORMAL</button>
+        <button class="btn mode-btn" data-mode="crt">CRT</button>
+        <button class="btn mode-btn" data-mode="nvg">NVG</button>
+        <button class="btn mode-btn" data-mode="thermal">FLIR</button>
+        <button class="btn mode-btn" data-mode="anime">ANIME</button>
+      </div>
+    </section>
+  </div>
 
-    <div class="section">
-      <h3>Recent Earthquakes</h3>
-      <div id="quakeFeed"></div>
-    </div>
-  </aside>
-
-  <div id="statusBar">Loading globe...</div>
+  <div id="statusPill" class="status-pill">Initializing scene...</div>
 
   <script>
-    const statusBar = document.getElementById("statusBar");
-    const details = document.getElementById("details");
+    const statusPill = document.getElementById("statusPill");
     const quakeFeed = document.getElementById("quakeFeed");
-    const conflictFeed = document.getElementById("conflictFeed");
+    const regionFeed = document.getElementById("regionFeed");
+    const selectionCard = document.getElementById("selectionCard");
     const searchInput = document.getElementById("searchInput");
+    const activeModeLabel = document.getElementById("activeModeLabel");
+    const quakeCountEl = document.getElementById("quakeCount");
+    const conflictCountEl = document.getElementById("conflictCount");
+    const timelineSlider = document.getElementById("timelineSlider");
+    const timelineLabel = document.getElementById("timelineLabel");
+
+    const conflictData = [
+      {
+        name: "Eastern Europe",
+        lat: 49.0,
+        lon: 31.0,
+        severity: "High",
+        trend: "Elevated",
+        summary: "Public reporting indicates ongoing regional conflict activity, infrastructure disruption, and humanitarian effects.",
+        headlines: [
+          "Recent public reporting highlights sustained regional instability.",
+          "Infrastructure and civilian-impact reporting remain active."
+        ]
+      },
+      {
+        name: "Middle East",
+        lat: 32.0,
+        lon: 44.0,
+        severity: "High",
+        trend: "Variable",
+        summary: "Multiple conflict flashpoints and humanitarian concerns are frequently covered by public reporting.",
+        headlines: [
+          "Cross-border tensions and urban-area impacts continue to be reported.",
+          "Regional humanitarian conditions remain a major concern."
+        ]
+      },
+      {
+        name: "Horn of Africa",
+        lat: 11.5,
+        lon: 43.0,
+        severity: "Medium",
+        trend: "Active",
+        summary: "Public coverage includes instability, displacement, and maritime-adjacent security concerns.",
+        headlines: [
+          "Instability and displacement issues continue in public reporting.",
+          "Strategic corridors remain under close observation by open sources."
+        ]
+      }
+    ];
+
+    let quakeEntities = [];
+    let conflictEntities = [];
+    let searchPin = null;
+    let gridEntity = null;
 
     const viewer = new Cesium.Viewer("cesiumContainer", {
       animation: false,
@@ -270,108 +708,126 @@
 
     viewer.scene.globe.enableLighting = true;
     viewer.scene.globe.depthTestAgainstTerrain = false;
-    viewer.scene.skyAtmosphere.show = true;
     viewer.scene.fog.enabled = true;
+    viewer.scene.skyAtmosphere.show = true;
+    viewer.scene.moon.show = true;
+    viewer.scene.sun.show = true;
+    viewer.scene.skyBox.show = true;
 
-    const osmLayer = viewer.imageryLayers.addImageryProvider(
-      new Cesium.OpenStreetMapImageryProvider({
-        url: "https://tile.openstreetmap.org/"
-      })
-    );
-    viewer.imageryLayers.raiseToTop(osmLayer);
-
-    viewer.camera.flyHome(0);
     viewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(-20, 20, 23000000)
+      destination: Cesium.Cartesian3.fromDegrees(-25, 22, 24000000)
     });
 
-    statusBar.textContent = "Globe ready";
+    statusPill.textContent = "Scene ready";
 
-    const conflictData = [
-      {
-        name: "Eastern Europe",
-        lat: 49.0,
-        lon: 31.0,
-        summary: "Public reporting indicates ongoing regional conflict activity and infrastructure impacts.",
-        news: "Use reputable reporting for latest developments."
-      },
-      {
-        name: "Middle East",
-        lat: 32.0,
-        lon: 44.0,
-        summary: "Multiple conflict flashpoints and humanitarian concerns are frequently reported publicly.",
-        news: "Tap marker for region summary."
-      },
-      {
-        name: "Horn of Africa",
-        lat: 11.5,
-        lon: 43.0,
-        summary: "Public coverage includes instability, displacement, and maritime security concerns.",
-        news: "Monitor trusted public sources for updates."
+    function addLatLonGrid() {
+      const entities = [];
+      for (let lon = -180; lon <= 180; lon += 30) {
+        entities.push(viewer.entities.add({
+          polyline: {
+            positions: Cesium.Cartesian3.fromDegreesArray([lon, -80, lon, 80]),
+            width: 1,
+            material: new Cesium.ColorMaterialProperty(
+              Cesium.Color.fromCssColorString("rgba(98,194,255,0.22)")
+            ),
+            clampToGround: false
+          }
+        }));
       }
-    ];
+
+      for (let lat = -60; lat <= 60; lat += 30) {
+        entities.push(viewer.entities.add({
+          polyline: {
+            positions: Cesium.Cartesian3.fromDegreesArray([-180, lat, 180, lat]),
+            width: 1,
+            material: new Cesium.ColorMaterialProperty(
+              Cesium.Color.fromCssColorString("rgba(98,194,255,0.22)")
+            ),
+            clampToGround: false
+          }
+        }));
+      }
+
+      return entities;
+    }
+
+    const gridEntities = addLatLonGrid();
+
+    function renderConflictFeed() {
+      conflictCountEl.textContent = String(conflictData.length);
+      regionFeed.innerHTML = conflictData.map(item => `
+        <div class="card">
+          <strong>${item.name}</strong>
+          <div class="meta">${item.summary}</div>
+          <div class="badge-row">
+            <span class="badge danger">Severity: ${item.severity}</span>
+            <span class="badge warn">Trend: ${item.trend}</span>
+          </div>
+        </div>
+      `).join("");
+    }
 
     function addConflictMarkers() {
-      conflictData.forEach((item) => {
-        viewer.entities.add({
+      conflictEntities.forEach(e => viewer.entities.remove(e));
+      conflictEntities = [];
+
+      conflictData.forEach(item => {
+        const entity = viewer.entities.add({
           name: item.name,
           position: Cesium.Cartesian3.fromDegrees(item.lon, item.lat),
           point: {
             pixelSize: 12,
-            color: Cesium.Color.RED,
+            color: Cesium.Color.fromCssColorString("#ff5e7a"),
             outlineColor: Cesium.Color.WHITE,
             outlineWidth: 2
           },
           label: {
             text: item.name,
-            font: "14px sans-serif",
+            font: "13px sans-serif",
             fillColor: Cesium.Color.WHITE,
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
             outlineWidth: 3,
-            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
             pixelOffset: new Cesium.Cartesian2(0, -18),
-            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0.0, 12000000.0)
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0.0, 10000000.0)
           },
-          description: item.summary,
           properties: {
             type: "conflict",
             summary: item.summary,
-            news: item.news
+            severity: item.severity,
+            trend: item.trend,
+            headlines: JSON.stringify(item.headlines)
           }
         });
+        conflictEntities.push(entity);
       });
-
-      conflictFeed.innerHTML = conflictData.map(item => `
-        <div class="feedItem">
-          <strong>${item.name}</strong>
-          ${item.summary}
-        </div>
-      `).join("");
     }
 
     async function loadEarthquakes() {
-      quakeFeed.innerHTML = `<div class="feedItem">Loading earthquakes...</div>`;
+      statusPill.textContent = "Loading public earthquake feed...";
+      quakeFeed.innerHTML = `<div class="card"><strong>Loading</strong><div class="meta">Fetching latest seismic events.</div></div>`;
+
+      quakeEntities.forEach(e => viewer.entities.remove(e));
+      quakeEntities = [];
 
       try {
         const res = await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson");
         const data = await res.json();
+        const features = data.features.slice(0, 30);
 
-        const features = data.features.slice(0, 20);
-
-        features.forEach((f) => {
+        features.forEach(f => {
           const [lon, lat, depth] = f.geometry.coordinates;
           const mag = f.properties.mag ?? 0;
-          const title = f.properties.title || "Earthquake";
           const color =
-            mag >= 5 ? Cesium.Color.RED :
-            mag >= 3 ? Cesium.Color.ORANGE :
-            Cesium.Color.YELLOW;
+            mag >= 5 ? Cesium.Color.fromCssColorString("#ff5e7a") :
+            mag >= 3 ? Cesium.Color.fromCssColorString("#ffb454") :
+            Cesium.Color.fromCssColorString("#f9ff66");
 
-          viewer.entities.add({
-            name: title,
+          const entity = viewer.entities.add({
+            name: f.properties.title || "Earthquake",
             position: Cesium.Cartesian3.fromDegrees(lon, lat),
             point: {
-              pixelSize: Math.max(6, mag * 3),
+              pixelSize: Math.max(6, mag * 2.8),
               color,
               outlineColor: Cesium.Color.BLACK,
               outlineWidth: 1
@@ -380,54 +836,75 @@
               type: "earthquake",
               mag,
               depth,
-              place: f.properties.place || title,
+              place: f.properties.place || "Unknown",
               time: f.properties.time,
               url: f.properties.url || ""
             }
           });
+          quakeEntities.push(entity);
         });
 
-        quakeFeed.innerHTML = features.map((f) => {
+        quakeFeed.innerHTML = features.map(f => {
           const mag = f.properties.mag ?? "N/A";
-          const place = f.properties.place || "Unknown location";
+          const place = f.properties.place || "Unknown";
           const time = new Date(f.properties.time).toLocaleString();
           return `
-            <div class="feedItem">
+            <div class="card">
               <strong>M ${mag} — ${place}</strong>
-              <div class="small">${time}</div>
+              <div class="meta">${time}</div>
             </div>
           `;
         }).join("");
 
-        statusBar.textContent = "Earthquakes updated";
+        quakeCountEl.textContent = String(features.length);
+        statusPill.textContent = "Earthquakes updated";
       } catch (err) {
-        quakeFeed.innerHTML = `<div class="feedItem">Could not load earthquakes right now.</div>`;
-        statusBar.textContent = "Earthquake feed failed";
+        quakeFeed.innerHTML = `<div class="card"><strong>Feed Error</strong><div class="meta">Could not load earthquake data right now.</div></div>`;
+        quakeCountEl.textContent = "--";
+        statusPill.textContent = "Earthquake feed unavailable";
+      }
+    }
+
+    async function showWeather(lat, lon, title) {
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,weather_code&timezone=auto`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const current = data.current || {};
+
+        selectionCard.innerHTML = `
+          <strong>${title}</strong>
+          <div class="meta">Lat ${lat.toFixed(4)} • Lon ${lon.toFixed(4)}</div>
+          <div class="badge-row">
+            <span class="badge ok">Temp: ${current.temperature_2m ?? "N/A"}°C</span>
+            <span class="badge">Wind: ${current.wind_speed_10m ?? "N/A"} km/h</span>
+            <span class="badge">Code: ${current.weather_code ?? "N/A"}</span>
+          </div>
+        `;
+      } catch (err) {
+        selectionCard.innerHTML = `
+          <strong>${title}</strong>
+          <div class="meta">Lat ${lat.toFixed(4)} • Lon ${lon.toFixed(4)}</div>
+          <div class="meta" style="margin-top:8px;">Weather unavailable.</div>
+        `;
       }
     }
 
     async function searchLocation() {
       const query = searchInput.value.trim();
       if (!query) return;
-
-      statusBar.textContent = `Searching for "${query}"...`;
+      statusPill.textContent = `Searching ${query}...`;
 
       try {
         const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`;
-        const res = await fetch(url, {
-          headers: {
-            "Accept": "application/json"
-          }
-        });
+        const res = await fetch(url, { headers: { "Accept": "application/json" } });
         const data = await res.json();
 
         if (!data.length) {
-          statusBar.textContent = "Location not found";
-          details.innerHTML = `
-            <div class="feedItem">
-              <strong>Search Result</strong>
-              No result found for <em>${query}</em>.
-            </div>
+          statusPill.textContent = "Location not found";
+          selectionCard.innerHTML = `
+            <strong>No result</strong>
+            <div class="meta">No location found for "${query}".</div>
           `;
           return;
         }
@@ -436,68 +913,41 @@
         const lat = parseFloat(place.lat);
         const lon = parseFloat(place.lon);
 
+        if (searchPin) viewer.entities.remove(searchPin);
+        searchPin = viewer.entities.add({
+          name: place.display_name,
+          position: Cesium.Cartesian3.fromDegrees(lon, lat),
+          point: {
+            pixelSize: 10,
+            color: Cesium.Color.fromCssColorString("#00ffc6"),
+            outlineColor: Cesium.Color.WHITE,
+            outlineWidth: 2
+          },
+          label: {
+            text: place.display_name,
+            font: "13px sans-serif",
+            fillColor: Cesium.Color.fromCssColorString("#dffff8"),
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            outlineWidth: 3,
+            pixelOffset: new Cesium.Cartesian2(0, -18),
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+          }
+        });
+
         viewer.camera.flyTo({
           destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1800000),
           duration: 2.0
         });
 
-        viewer.entities.add({
-          name: place.display_name,
-          position: Cesium.Cartesian3.fromDegrees(lon, lat),
-          billboard: {
-            image: "https://cdn.jsdelivr.net/npm/ionicons@7.1.0/dist/svg/location.svg",
-            scale: 0.08,
-            color: Cesium.Color.CYAN
-          },
-          properties: {
-            type: "search-result",
-            label: place.display_name
-          }
-        });
-
         await showWeather(lat, lon, place.display_name);
-        statusBar.textContent = `Showing ${place.display_name}`;
+        statusPill.textContent = `Focused on ${place.display_name}`;
       } catch (err) {
-        statusBar.textContent = "Search failed";
-      }
-    }
-
-    async function showWeather(lat, lon, labelText) {
-      try {
-        const weatherUrl =
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,weather_code&timezone=auto`;
-
-        const res = await fetch(weatherUrl);
-        const data = await res.json();
-        const current = data.current || {};
-
-        details.innerHTML = `
-          <div class="feedItem">
-            <strong>${labelText}</strong>
-            <div>Latitude: ${lat.toFixed(4)}</div>
-            <div>Longitude: ${lon.toFixed(4)}</div>
-            <div class="badgeRow">
-              <span class="badge">Temp: ${current.temperature_2m ?? "N/A"}°C</span>
-              <span class="badge">Wind: ${current.wind_speed_10m ?? "N/A"} km/h</span>
-              <span class="badge">Code: ${current.weather_code ?? "N/A"}</span>
-            </div>
-          </div>
-        `;
-      } catch (err) {
-        details.innerHTML = `
-          <div class="feedItem">
-            <strong>${labelText}</strong>
-            <div>Latitude: ${lat.toFixed(4)}</div>
-            <div>Longitude: ${lon.toFixed(4)}</div>
-            <div class="small">Weather could not be loaded.</div>
-          </div>
-        `;
+        statusPill.textContent = "Search failed";
       }
     }
 
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-
-    handler.setInputAction(async function (click) {
+    handler.setInputAction(async function(click) {
       const pickedObject = viewer.scene.pick(click.position);
 
       if (Cesium.defined(pickedObject) && pickedObject.id) {
@@ -508,13 +958,17 @@
           const type = props.type.getValue();
 
           if (type === "conflict") {
-            details.innerHTML = `
-              <div class="feedItem">
-                <strong>${entity.name}</strong>
-                <div>${props.summary.getValue()}</div>
-                <div class="small" style="margin-top:8px;">${props.news.getValue()}</div>
+            const headlines = JSON.parse(props.headlines.getValue());
+            selectionCard.innerHTML = `
+              <strong>${entity.name}</strong>
+              <div class="meta">${props.summary.getValue()}</div>
+              <div class="badge-row">
+                <span class="badge danger">Severity: ${props.severity.getValue()}</span>
+                <span class="badge warn">Trend: ${props.trend.getValue()}</span>
               </div>
+              <div class="meta" style="margin-top:8px;">• ${headlines.join("<br>• ")}</div>
             `;
+            statusPill.textContent = `Selected region: ${entity.name}`;
             return;
           }
 
@@ -525,15 +979,13 @@
             const time = new Date(props.time.getValue()).toLocaleString();
             const url = props.url.getValue();
 
-            details.innerHTML = `
-              <div class="feedItem">
-                <strong>${place}</strong>
-                <div>Magnitude: ${mag}</div>
-                <div>Depth: ${depth} km</div>
-                <div class="small">${time}</div>
-                ${url ? `<div style="margin-top:8px;"><a href="${url}" target="_blank" rel="noopener noreferrer">USGS Event Page</a></div>` : ""}
-              </div>
+            selectionCard.innerHTML = `
+              <strong>${place}</strong>
+              <div class="meta">Magnitude ${mag} • Depth ${depth} km</div>
+              <div class="meta" style="margin-top:6px;">${time}</div>
+              ${url ? `<div class="meta" style="margin-top:8px;"><a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#8fd7ff;">USGS event page</a></div>` : ""}
             `;
+            statusPill.textContent = "Selected seismic event";
             return;
           }
         }
@@ -549,30 +1001,71 @@
       viewer.entities.add({
         position: earthPosition,
         point: {
-          pixelSize: 8,
-          color: Cesium.Color.CYAN,
+          pixelSize: 7,
+          color: Cesium.Color.fromCssColorString("#62c2ff"),
           outlineColor: Cesium.Color.WHITE,
           outlineWidth: 1
         }
       });
 
-      await showWeather(lat, lon, `Clicked Location`);
-      statusBar.textContent = `Lat ${lat.toFixed(3)}, Lon ${lon.toFixed(3)}`;
+      await showWeather(lat, lon, "Selected Coordinates");
+      statusPill.textContent = `Lat ${lat.toFixed(3)} • Lon ${lon.toFixed(3)}`;
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    function setMode(mode) {
+      document.body.className = `mode-${mode}`;
+      activeModeLabel.textContent = mode.toUpperCase();
+      document.querySelectorAll(".mode-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.mode === mode);
+      });
+    }
+
+    document.querySelectorAll(".mode-btn").forEach(btn => {
+      btn.addEventListener("click", () => setMode(btn.dataset.mode));
+    });
 
     document.getElementById("searchBtn").addEventListener("click", searchLocation);
     document.getElementById("resetBtn").addEventListener("click", () => {
       viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(-20, 20, 23000000),
+        destination: Cesium.Cartesian3.fromDegrees(-25, 22, 24000000),
         duration: 2.0
       });
+      statusPill.textContent = "Returned to home view";
     });
-    document.getElementById("quakesBtn").addEventListener("click", loadEarthquakes);
 
-    searchInput.addEventListener("keydown", (e) => {
+    document.getElementById("reloadBtn").addEventListener("click", loadEarthquakes);
+
+    searchInput.addEventListener("keydown", e => {
       if (e.key === "Enter") searchLocation();
     });
 
+    document.getElementById("toggleQuakes").addEventListener("change", e => {
+      quakeEntities.forEach(ent => ent.show = e.target.checked);
+    });
+
+    document.getElementById("toggleConflicts").addEventListener("change", e => {
+      conflictEntities.forEach(ent => ent.show = e.target.checked);
+    });
+
+    document.getElementById("toggleGrid").addEventListener("change", e => {
+      gridEntities.forEach(ent => ent.show = e.target.checked);
+    });
+
+    document.getElementById("toggleStars").addEventListener("change", e => {
+      viewer.scene.skyBox.show = e.target.checked;
+    });
+
+    timelineSlider.addEventListener("input", () => {
+      const labels = {
+        1: "Last 24 hours",
+        2: "Last 7 days",
+        3: "Last 30 days",
+        4: "Last 90 days"
+      };
+      timelineLabel.textContent = labels[timelineSlider.value];
+    });
+
+    renderConflictFeed();
     addConflictMarkers();
     loadEarthquakes();
   </script>
