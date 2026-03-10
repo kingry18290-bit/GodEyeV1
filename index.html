@@ -28,7 +28,9 @@
       --shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     html, body, #cesiumContainer {
       width: 100%;
@@ -51,7 +53,6 @@
       z-index: 0;
     }
 
-    /* Visual modes */
     body.mode-crt #cesiumContainer {
       filter: contrast(1.08) saturate(0.95) brightness(0.95);
     }
@@ -82,14 +83,13 @@
           to bottom,
           rgba(255,255,255,0.04) 0px,
           rgba(255,255,255,0.04) 1px,
-          rgba(0,0,0,0.00) 2px,
-          rgba(0,0,0,0.00) 4px
+          rgba(0,0,0,0) 2px,
+          rgba(0,0,0,0) 4px
         );
       opacity: 0.18;
       mix-blend-mode: screen;
     }
 
-    /* Top bar */
     .topbar {
       position: absolute;
       top: 0;
@@ -141,7 +141,7 @@
       justify-content: flex-end;
     }
 
-    .input, .btn, .select {
+    .input, .btn {
       border: 1px solid var(--line);
       background: rgba(255,255,255,0.06);
       color: var(--text);
@@ -152,7 +152,7 @@
     }
 
     .input {
-      min-width: 220px;
+      min-width: 240px;
       outline: none;
     }
 
@@ -173,7 +173,6 @@
       color: #dff4ff;
     }
 
-    /* Left rail */
     .left-rail {
       position: absolute;
       top: 96px;
@@ -185,7 +184,6 @@
       gap: 12px;
     }
 
-    /* Right rail */
     .right-rail {
       position: absolute;
       top: 96px;
@@ -200,7 +198,6 @@
       padding-right: 2px;
     }
 
-    /* Bottom rail */
     .bottom-rail {
       position: absolute;
       left: 50%;
@@ -231,8 +228,7 @@
       inset: 0;
       pointer-events: none;
       border-radius: inherit;
-      background:
-        linear-gradient(to bottom right, rgba(98,194,255,0.04), transparent 35%);
+      background: linear-gradient(to bottom right, rgba(98,194,255,0.04), transparent 35%);
     }
 
     .panel-title {
@@ -328,7 +324,7 @@
     .meta {
       color: var(--muted);
       font-size: 12px;
-      line-height: 1.4;
+      line-height: 1.45;
     }
 
     .badge-row {
@@ -441,6 +437,15 @@
       border-radius: 10px;
     }
 
+    a {
+      color: #8fd7ff;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
     .cesium-viewer-bottom,
     .cesium-widget-credits {
       display: none !important;
@@ -452,7 +457,8 @@
     }
 
     @media (max-width: 980px) {
-      .left-rail, .right-rail {
+      .left-rail,
+      .right-rail {
         position: static;
         width: auto;
         max-height: none;
@@ -476,7 +482,6 @@
 
       body {
         overflow: auto;
-        background: var(--bg);
       }
 
       #cesiumContainer {
@@ -656,9 +661,9 @@
         severity: "High",
         trend: "Elevated",
         summary: "Public reporting indicates ongoing regional conflict activity, infrastructure disruption, and humanitarian effects.",
-        headlines: [
-          "Recent public reporting highlights sustained regional instability.",
-          "Infrastructure and civilian-impact reporting remain active."
+        bullets: [
+          "Public reporting continues to note infrastructure strain.",
+          "Regional instability remains elevated."
         ]
       },
       {
@@ -668,7 +673,7 @@
         severity: "High",
         trend: "Variable",
         summary: "Multiple conflict flashpoints and humanitarian concerns are frequently covered by public reporting.",
-        headlines: [
+        bullets: [
           "Cross-border tensions and urban-area impacts continue to be reported.",
           "Regional humanitarian conditions remain a major concern."
         ]
@@ -680,39 +685,52 @@
         severity: "Medium",
         trend: "Active",
         summary: "Public coverage includes instability, displacement, and maritime-adjacent security concerns.",
-        headlines: [
-          "Instability and displacement issues continue in public reporting.",
-          "Strategic corridors remain under close observation by open sources."
+        bullets: [
+          "Instability and displacement remain recurring themes.",
+          "Strategic corridors continue to draw attention."
         ]
       }
     ];
 
     let quakeEntities = [];
     let conflictEntities = [];
+    let gridEntities = [];
+    let clickPins = [];
     let searchPin = null;
-    let gridEntity = null;
 
     const viewer = new Cesium.Viewer("cesiumContainer", {
       animation: false,
       timeline: false,
       shouldAnimate: true,
-      baseLayerPicker: true,
+      baseLayerPicker: false,
       geocoder: false,
       homeButton: false,
       sceneModePicker: true,
       navigationHelpButton: false,
       fullscreenButton: true,
       infoBox: false,
-      selectionIndicator: true
+      selectionIndicator: true,
+      terrainProvider: new Cesium.EllipsoidTerrainProvider()
     });
 
+    viewer.imageryLayers.removeAll();
+
+    const osmProvider = new Cesium.OpenStreetMapImageryProvider({
+      url: "https://tile.openstreetmap.org/"
+    });
+    viewer.imageryLayers.addImageryProvider(osmProvider);
+
+    viewer.scene.globe.show = true;
+    viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString("#1c2f45");
     viewer.scene.globe.enableLighting = true;
     viewer.scene.globe.depthTestAgainstTerrain = false;
-    viewer.scene.fog.enabled = true;
+
     viewer.scene.skyAtmosphere.show = true;
-    viewer.scene.moon.show = true;
-    viewer.scene.sun.show = true;
+    viewer.scene.fog.enabled = true;
     viewer.scene.skyBox.show = true;
+    viewer.scene.sun.show = true;
+    viewer.scene.moon.show = true;
+    viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#02060c");
 
     viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(-25, 22, 24000000)
@@ -722,36 +740,35 @@
 
     function addLatLonGrid() {
       const entities = [];
+
       for (let lon = -180; lon <= 180; lon += 30) {
-        entities.push(viewer.entities.add({
-          polyline: {
-            positions: Cesium.Cartesian3.fromDegreesArray([lon, -80, lon, 80]),
-            width: 1,
-            material: new Cesium.ColorMaterialProperty(
-              Cesium.Color.fromCssColorString("rgba(98,194,255,0.22)")
-            ),
-            clampToGround: false
-          }
-        }));
+        entities.push(
+          viewer.entities.add({
+            polyline: {
+              positions: Cesium.Cartesian3.fromDegreesArray([lon, -80, lon, 80]),
+              width: 1,
+              material: Cesium.Color.fromCssColorString("rgba(98,194,255,0.22)")
+            }
+          })
+        );
       }
 
       for (let lat = -60; lat <= 60; lat += 30) {
-        entities.push(viewer.entities.add({
-          polyline: {
-            positions: Cesium.Cartesian3.fromDegreesArray([-180, lat, 180, lat]),
-            width: 1,
-            material: new Cesium.ColorMaterialProperty(
-              Cesium.Color.fromCssColorString("rgba(98,194,255,0.22)")
-            ),
-            clampToGround: false
-          }
-        }));
+        entities.push(
+          viewer.entities.add({
+            polyline: {
+              positions: Cesium.Cartesian3.fromDegreesArray([-180, lat, 180, lat]),
+              width: 1,
+              material: Cesium.Color.fromCssColorString("rgba(98,194,255,0.22)")
+            }
+          })
+        );
       }
 
       return entities;
     }
 
-    const gridEntities = addLatLonGrid();
+    gridEntities = addLatLonGrid();
 
     function renderConflictFeed() {
       conflictCountEl.textContent = String(conflictData.length);
@@ -796,7 +813,7 @@
             summary: item.summary,
             severity: item.severity,
             trend: item.trend,
-            headlines: JSON.stringify(item.headlines)
+            bullets: JSON.stringify(item.bullets)
           }
         });
         conflictEntities.push(entity);
@@ -893,6 +910,7 @@
     async function searchLocation() {
       const query = searchInput.value.trim();
       if (!query) return;
+
       statusPill.textContent = `Searching ${query}...`;
 
       try {
@@ -936,7 +954,7 @@
 
         viewer.camera.flyTo({
           destination: Cesium.Cartesian3.fromDegrees(lon, lat, 1800000),
-          duration: 2.0
+          duration: 2
         });
 
         await showWeather(lat, lon, place.display_name);
@@ -958,7 +976,7 @@
           const type = props.type.getValue();
 
           if (type === "conflict") {
-            const headlines = JSON.parse(props.headlines.getValue());
+            const bullets = JSON.parse(props.bullets.getValue());
             selectionCard.innerHTML = `
               <strong>${entity.name}</strong>
               <div class="meta">${props.summary.getValue()}</div>
@@ -966,7 +984,7 @@
                 <span class="badge danger">Severity: ${props.severity.getValue()}</span>
                 <span class="badge warn">Trend: ${props.trend.getValue()}</span>
               </div>
-              <div class="meta" style="margin-top:8px;">• ${headlines.join("<br>• ")}</div>
+              <div class="meta" style="margin-top:8px;">• ${bullets.join("<br>• ")}</div>
             `;
             statusPill.textContent = `Selected region: ${entity.name}`;
             return;
@@ -983,7 +1001,7 @@
               <strong>${place}</strong>
               <div class="meta">Magnitude ${mag} • Depth ${depth} km</div>
               <div class="meta" style="margin-top:6px;">${time}</div>
-              ${url ? `<div class="meta" style="margin-top:8px;"><a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#8fd7ff;">USGS event page</a></div>` : ""}
+              ${url ? `<div class="meta" style="margin-top:8px;"><a href="${url}" target="_blank" rel="noopener noreferrer">USGS event page</a></div>` : ""}
             `;
             statusPill.textContent = "Selected seismic event";
             return;
@@ -998,7 +1016,7 @@
       const lat = Cesium.Math.toDegrees(cartographic.latitude);
       const lon = Cesium.Math.toDegrees(cartographic.longitude);
 
-      viewer.entities.add({
+      const pin = viewer.entities.add({
         position: earthPosition,
         point: {
           pixelSize: 7,
@@ -1007,6 +1025,11 @@
           outlineWidth: 1
         }
       });
+
+      clickPins.push(pin);
+      if (clickPins.length > 10) {
+        viewer.entities.remove(clickPins.shift());
+      }
 
       await showWeather(lat, lon, "Selected Coordinates");
       statusPill.textContent = `Lat ${lat.toFixed(3)} • Lon ${lon.toFixed(3)}`;
@@ -1025,10 +1048,11 @@
     });
 
     document.getElementById("searchBtn").addEventListener("click", searchLocation);
+
     document.getElementById("resetBtn").addEventListener("click", () => {
       viewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(-25, 22, 24000000),
-        duration: 2.0
+        duration: 2
       });
       statusPill.textContent = "Returned to home view";
     });
@@ -1053,6 +1077,8 @@
 
     document.getElementById("toggleStars").addEventListener("change", e => {
       viewer.scene.skyBox.show = e.target.checked;
+      viewer.scene.sun.show = e.target.checked;
+      viewer.scene.moon.show = e.target.checked;
     });
 
     timelineSlider.addEventListener("input", () => {
